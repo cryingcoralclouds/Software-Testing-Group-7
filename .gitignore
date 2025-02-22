@@ -10,6 +10,9 @@ env
 /staticfiles/
 
 #src
-# *.sqlite*
+#This should be uncommented to not push your version of the sqlite to remote
+*.sqlite*
 
+#Add your virtual env file here as well to not push to remote
+myvenv/
 .env

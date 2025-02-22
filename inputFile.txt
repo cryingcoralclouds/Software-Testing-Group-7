@@ -1,0 +1,5 @@
+{"form_data":{
+    "name": "Jimmy",
+    "info": "Helper",
+    "price": 90
+}, "energy": 3}
