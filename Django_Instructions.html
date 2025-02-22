@@ -12,7 +12,7 @@
 
 .vscode-dark img[src$=\#gh-light-mode-only],
 .vscode-light img[src$=\#gh-dark-mode-only] {
-	display: none;
+    display: none;
 }
 
 </style>
@@ -141,9 +141,9 @@
 <h2 id="fuzzing-a-django-web-application">Fuzzing a Django Web Application.</h2>
 <h2 id="manual-build">Manual Build</h2>
 <blockquote>
-<p>Uncompress the application</p>
+<p>Uncompress the application.  You can also manually unzip (extract it to any folder).</p>
 </blockquote>
-<pre><code class="language-bash">$ tar -xvf DjangoWebApplication.tar.gz
+<pre><code class="language-bash">$ unzip DjangoWebApplication.zip -d &lt;target_directory&gt;
 </code></pre>
 <h3 id="-set-up-for-unix-macos">👉 Set Up for <code>Unix</code>, <code>MacOS</code></h3>
 <blockquote>
@@ -233,7 +233,7 @@ url = base_url + endpoint_url
 
 random_name = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=10))
 random_info = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=4))
-random_price = str(random.randint(1, 100))
+random_price = random.randint(1, 100)
 
 form_data = {
     'name': random_name,
