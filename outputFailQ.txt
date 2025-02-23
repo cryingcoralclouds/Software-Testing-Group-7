@@ -1,0 +1,16 @@
+[
+    {
+        "name": "bRfiP",
+        "info": "vLxNa",
+        "price": "hello"
+    },
+    {
+        "info": "sgpR",
+        "price": "hello"
+    },
+    {
+        "name": "afGHnKPvAc",
+        "info": "HelP",
+        "price": "hello"
+    }
+]
