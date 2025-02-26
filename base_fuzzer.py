@@ -62,8 +62,13 @@ def mutate_input(data):
     except json.JSONDecodeError:
         return None
 
-    mutation_types = ["bitflip", "byteflip", "insert", "delete", "crossover", "random"]
+    mutation_types = ["bitflip", "byteflip", "insert", "delete", "crossover", "random", "newFields", "editDataTypes", "editData"]
+    original_fields = ["name", "price", "info"]
+    field_toChange = random.choice(original_fields)
     mutation = random.choice(mutation_types)
+    # Test
+    field_toChange = "name"
+    mutation = "editData"
 
     if mutation == "bitflip":
         if "name" in parsed_data:
@@ -76,14 +81,30 @@ def mutate_input(data):
         if "name" in parsed_data:
             parsed_data["name"] += random.choice("XYZ")  # Insert valid character
     elif mutation == "delete":
-        if random.choice([True, False]):
-            parsed_data.pop("price", None)  # Remove price field (valid but edge case)
+        # if random.choice([True, False]) and ("price" in parsed_data):
+        #     parsed_data.pop("price", None)  # Remove price field (valid but edge case)
+        if random.choice([True, False]) and (field_toChange in parsed_data):
+            parsed_data.pop(field_toChange, None)  # Remove price field (valid but edge case)
     elif mutation == "crossover":
         if "name" in parsed_data and "info" in parsed_data:
             parsed_data["name"], parsed_data["info"] = parsed_data["info"], parsed_data["name"]  # Swap fields
     elif mutation == "random":
         if "price" in parsed_data:
-            parsed_data["price"] = random.randint(1, 10000)  # Extreme price values
+            parsed_data["price"] = random.randint(-10000, 10000)  # Extreme price values
+    elif mutation == "newFields":
+        parsed_data["id"] = random.randint(-100, 100000)    #Add new field id
+    elif mutation == "editDataTypes":
+        if (field_toChange in parsed_data):
+            if (field_toChange == "price"):
+                parsed_data[field_toChange] = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=10)) # Change price to string datatype, fail to send req
+            else:
+                parsed_data[field_toChange] = random.randint(-10000, 10000)     # Change string datatypes, name or info, to int
+    elif mutation == "editData":
+        if (field_toChange in parsed_data):
+            if (field_toChange == "price"):
+                parsed_data[field_toChange] = random.randint(-10000, 10000)  # Change price values
+            else:
+                parsed_data[field_toChange] = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=10))    # Change name/info values
 
     return json.dumps(parsed_data)
 
