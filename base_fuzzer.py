@@ -8,15 +8,15 @@ import coverage  # For path discovery
 # Django API URL
 BASE_URL = "http://127.0.0.1:8000/datatb/product/add/"
 
-# Input/output directories
-INPUT_DIR = "input_dir"
-OUTPUT_DIR = "output_dir"
-CRASH_DIR = os.path.join(OUTPUT_DIR, "crashes")
+# # Input/output directories
+# INPUT_DIR = "input_dir"
+# OUTPUT_DIR = "output_dir"
+# CRASH_DIR = os.path.join(OUTPUT_DIR, "crashes")
 
-# Ensure directories exist
-os.makedirs(INPUT_DIR, exist_ok=True)
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(CRASH_DIR, exist_ok=True)
+# # Ensure directories exist
+# os.makedirs(INPUT_DIR, exist_ok=True)
+# os.makedirs(OUTPUT_DIR, exist_ok=True)
+# os.makedirs(CRASH_DIR, exist_ok=True)
 
 # Priority queue for test case selection
 seed_queue = []
@@ -25,7 +25,7 @@ test_case_id = 0
 # Initialize coverage tracking
 cov = coverage.Coverage()
 
-def load_seed_inputs():
+def load_seed_inputs(INPUT_DIR):
     """Load seed files into priority queue."""
     global test_case_id
     for filename in os.listdir(INPUT_DIR):
@@ -87,7 +87,7 @@ def mutate_input(data):
 
     return json.dumps(parsed_data)
 
-def send_fuzzed_request(fuzzed_data):
+def send_fuzzed_request(fuzzed_data, CRASH_DIR):
     """Sends the fuzzed request and checks if it’s interesting."""
     headers = {"Content-Type": "application/json"}
     try:
@@ -129,9 +129,19 @@ def assign_path_weights(response_type):
     else:
         return 0.2  # Normal response
 
-def main():
+def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
+    # Input/output directories
+    INPUT_DIR = input_filepath
+    # OUTPUT_DIR = outputInteresting_filepath
+    CRASH_DIR = outputFail_filepath
+
+    # Ensure directories exist
+    os.makedirs(INPUT_DIR, exist_ok=True)
+    # os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(CRASH_DIR, exist_ok=True)
+
     """Main fuzzing loop implementing AFL logic."""
-    load_seed_inputs()
+    load_seed_inputs(input_filepath)
 
     i = 0
 
@@ -146,7 +156,7 @@ def main():
             if not fuzzed_payload:
                 continue
 
-            response_type = send_fuzzed_request(fuzzed_payload)
+            response_type = send_fuzzed_request(fuzzed_payload, CRASH_DIR)
 
             # Assign new weight and reinsert into queue if still relevant
             priority = assign_path_weights(response_type)
@@ -154,5 +164,5 @@ def main():
 
         i += 1
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     mainfuzz()
