@@ -16,4 +16,5 @@ env
 #Add your virtual env file here as well to not push to remote
 myvenv/
 .env
+.venv
 .coverage

@@ -4,6 +4,7 @@ import json
 import argparse
 import os
 from base_fuzzer import mainfuzz
+#from dummy_fuzzer import mainfuzz
 
 # Replace with your Django app's base URL
 base_url = 'http://127.0.0.1:8000/datatb/product/'
