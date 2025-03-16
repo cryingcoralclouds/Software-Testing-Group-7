@@ -67,8 +67,8 @@ def mutate_input(data):
     field_toChange = random.choice(original_fields)
     mutation = random.choice(mutation_types)
     # Test
-    field_toChange = "name"
-    mutation = "editData"
+    # field_toChange = "name"
+    # mutation = "editData"
 
     if mutation == "bitflip":
         if "name" in parsed_data:
