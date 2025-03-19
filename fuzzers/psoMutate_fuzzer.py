@@ -32,10 +32,10 @@ class MOptSwarm:
 
         # Initialize each operator with equal probability
         initial_prob = 1.0 / len(operators)
-        self.probabilities = {op: initial_prob for op in operators}         # dict that maps opertator to its probability
-        self.velocities = {op: 0.1 for op in operators}                     # dict that maps opertator to its velocity
-        self.local_best = {op: initial_prob for op in operators}            # dict that maps opertator to its local best probability
-        self.local_best_eff = {op: 0.0 for op in operators}                 # dict that maps opertator to its local best effeciency
+        self.probabilities = {op: initial_prob for op in operators}         # dict that maps operator to its probability
+        self.velocities = {op: 0.1 for op in operators}                     # dict that maps operator to its velocity
+        self.local_best = {op: initial_prob for op in operators}            # dict that maps operator to its local best probability
+        self.local_best_eff = {op: 0.0 for op in operators}                 # dict that maps operator to its local best effeciency
 
         # Counters for current iteration
         self.use_count  = {op: 0 for op in operators}                       # dict that maps operator to num of times it is used
