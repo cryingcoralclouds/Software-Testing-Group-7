@@ -29,10 +29,18 @@ class MOptSwarm:
         self.w = w                          # inertia weight, determines how much the previous velocity is retained when updating the particle's movement. Higher: More exploration, less accurate. Lower is opp
         self.local_coeff = local_coeff      # allow us to determine how much influence the local or global has on the updating of v_new and x_new
         self.global_coeff = global_coeff    # allow us to determine how much influence the local or global has on the updating of v_new and x_new
+        initial_prob = 1.0 / len(operators) # Initial probability for each operator, all same
 
-        # Initialize each operator with equal probability
-        initial_prob = 1.0 / len(operators)
-        self.probabilities = {op: initial_prob for op in operators}         # dict that maps opertator to its probability
+        random_prob_init = True            # Set to True to initialize each operator with a random probability
+        if random_prob_init:
+            weights = [random.random() for _ in operators]  # Generate random probabilities for each operator
+            total_weight = sum(weights)     # Normalize to sum to 1
+            self.probabilities = {op: w / total_weight for op, w in zip(operators, weights)} # for when we want to initialize diff probabilities for each operator
+        else:
+            
+            self.probabilities = {op: initial_prob for op in operators}         # dict that maps opertator to its probability, initialise all operators with same probability
+        
+        print(self.probabilities)
         self.velocities = {op: 0.1 for op in operators}                     # dict that maps opertator to its velocity
         self.local_best = {op: initial_prob for op in operators}            # dict that maps opertator to its local best probability
         self.local_best_eff = {op: 0.0 for op in operators}                 # dict that maps opertator to its local best effeciency
