@@ -109,7 +109,7 @@ def mutate_input(data):
 
     return json.dumps(parsed_data)
 
-def send_fuzzed_request(program, fuzzed_data, CRASH_DIR):
+def send_fuzzed_request(fuzzed_data, CRASH_DIR):
     """Sends the fuzzed request and checks if it’s interesting."""
     headers = {"Content-Type": "application/json"}
     try:
@@ -133,7 +133,7 @@ def send_fuzzed_request(program, fuzzed_data, CRASH_DIR):
 
     except Exception as e:
         print(f"Request failed: {str(e)}")
-        return "error"
+        return "error", None
 
 def track_execution_path():
     """Tracks code coverage to detect new execution paths."""
@@ -153,10 +153,19 @@ def assign_path_weights(path_id, all_found_paths):
     """Assigns higher weights to responses likely to cause errors."""
     if path_id in all_found_paths:
         all_found_paths[path_id]["runs"] += 1
+        all_found_paths = update_path_weights(all_found_paths, path_id)
     else:
-        current_highest_priority = max(all_found_paths.values(), key=lambda x: x["priority"])
+        current_highest_priority = max([i["priority"] for i in all_found_paths.values()]) if len(all_found_paths) > 0 else 0
         all_found_paths[path_id] = {"runs": 1, "priority": current_highest_priority + 1}
     return all_found_paths[path_id]["priority"], all_found_paths
+
+def update_path_weights(all_found_paths, path_id):
+    lower_weighted_paths = [k for k, v in all_found_paths.items() if v["priority"] < all_found_paths[path_id]["priority"]]
+    sorted_paths = sorted(lower_weighted_paths, key=lambda x: all_found_paths[x]["priority"], reverse=True)
+    for path in sorted_paths:
+        if all_found_paths[path]["runs"] < all_found_paths[path_id]["runs"]:
+            all_found_paths[path]["priority"], all_found_paths[path_id]["priority"] = all_found_paths[path_id]["priority"], all_found_paths[path]["priority"]
+    return all_found_paths
 
 def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
     # Input/output directories
@@ -194,6 +203,7 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
             heapq.heappush(seed_queue, (-priority, test_case_id, fuzzed_payload))
 
         i += 1
+    print(all_found_paths)
 
 # if __name__ == "__main__":
 #     mainfuzz()
