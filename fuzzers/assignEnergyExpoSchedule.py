@@ -4,6 +4,8 @@ import requests
 import random
 import heapq  # Priority queue
 import coverage  # For path discovery
+import struct  # For bit manipulation
+import string
 
 # Django API URL
 BASE_URL = "http://127.0.0.1:8000/datatb/product/add/"
@@ -37,6 +39,12 @@ class SeedObject:
 
     def __repr__(self):
         return self.__str__()
+    
+    def increment_selection_count(self):
+        self.selection_count += 1
+    
+    def increment_fuzz_count(self):
+        self.fuzz_count += 1
 
 def load_seed_inputs(INPUT_DIR):
     """Load seed files into priority queue."""
@@ -58,7 +66,7 @@ def choose_next():
     # _, _, test_case = heapq.heappop(seed_queue)
     # return test_case
     _, _, seedObj = heapq.heappop(seed_queue)   # Pop SeedObject from seed_queue
-    seedObj.selection_count += 1                # Increment selection count for SeedObject s(i)
+    seedObj.increment_selection_count()              # Increment selection count for SeedObject s(i)
     return seedObj                       # Return the SeedObject
 
 def next_power2(value):
@@ -86,7 +94,7 @@ def assign_energy(seedObject):
     """
 
     # Constants
-    ALPHA = 100 # Incomplete, still requires implementing adjustment of ALPHA based on execution speed, handicap(how late path is discovered),
+    ALPHA = 100 # Standardise as a fixed num, can be adjusted
     BETA = 1.0    
     MAX_FACTOR = BETA * 32
     MAX_MULT = 16
@@ -104,8 +112,129 @@ def assign_energy(seedObject):
         factor = MAX_FACTOR
 
     energy = int(min((ALPHA * factor / BETA), (MAX_MULT * 100) ) )  # Compute energy according to the exponential schedule
-    print(energy)
     return energy
+
+# ===================================== Specific mutation functions start =====================================
+def mutate_bitflip(value):
+    num_flips = random.randint(1, 8)  # Number of bits to flip (1-8)
+    
+    # Convert value to byte array based on their data type
+    if isinstance(value, str):
+        byte_array = bytearray(value, 'utf-8')
+    elif isinstance(value, int):
+        num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
+        byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
+    elif isinstance(value, float):
+        byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
+    else:
+        raise TypeError("Unsupported type")
+
+    # Perform random bit flips
+    for _ in range(num_flips):
+        index = random.randint(0, len(byte_array) - 1)
+        bit = 1 << random.randint(0, 7)
+        byte_array[index] ^= bit  # Flip a random bit
+
+    # convert byte array back to original type
+    if isinstance(value, str):
+        return byte_array.decode('utf-8', errors='ignore')
+    elif isinstance(value, int):
+        return int.from_bytes(byte_array, "little", signed=True)
+    elif isinstance(value, float):
+        return struct.unpack("d", byte_array)[0]
+
+def mutate_byteflip(value):
+    
+    # Convert value to byte array based on their data type
+    if isinstance(value, str):
+        byte_array = bytearray(value, 'utf-8')
+    elif isinstance(value, int):
+        num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
+        byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
+    elif isinstance(value, float):
+        byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
+    else:
+        raise TypeError("Unsupported type")
+    
+    num_flips = random.randint(1, max(1, len(byte_array)))  # Number of bytes to flip based on the number of bytes available in the value for flipping
+    
+    # Perform random byte flips
+    for _ in range(num_flips):
+        index = random.randint(0, len(byte_array) - 1)  # Choose a random byte
+        byte_array[index] = random.randint(0, 255)  # Replace with a random byte
+
+    # Convert byte array back to the original type
+    if isinstance(value, str):
+        return byte_array.decode('utf-8', errors='ignore')  # Ignore decoding errors
+    elif isinstance(value, int):
+        return int.from_bytes(byte_array, "little", signed=True)
+    elif isinstance(value, float):
+        return struct.unpack("d", byte_array)[0]
+    
+def mutate_append(value, all_characters):
+
+    if isinstance(value, str):
+        num_chars = random.randint(1, 100)  # Number of characters to insert
+        return value + ''.join(random.choices(all_characters, k=num_chars)) 
+
+    elif isinstance(value, int):
+        mutation = random.randint(-1000, 1000)  # Random addition or subtraction
+        return value + mutation
+
+    elif isinstance(value, float):
+        mutation = random.uniform(-1000.0, 1000.0)  # Random addition or subtraction
+        return value + mutation
+
+    else:
+        raise TypeError("Unsupported type")
+    
+def mutate_replace(value):
+
+    if isinstance(value, str):
+        all_characters = string.ascii_letters + string.digits + string.punctuation + string.whitespace
+        num_chars = random.randint(1, 100)  # Number of characters to insert
+        return ''.join(random.choices(all_characters, k=num_chars)) 
+
+    elif isinstance(value, int):
+        random_data = random.randint(-1000, 1000)  # Random data
+        return random_data
+
+    elif isinstance(value, float):
+        random_data = random.uniform(-1000.0, 1000.0)  # Random data
+        return random_data
+
+    else:
+        raise TypeError("Unsupported type")
+    
+def mutate_insert(all_characters):
+    num_char_field = random.randint(1, 10)  # Number of characters of the new field
+    new_field = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num_char_field))  # Generate random string for the new field
+
+    if (random.randint(0, 1) == 0):
+        num_char = random.randint(1, 50)  # Number of characters of the new field
+        new_field_data = ''.join(random.choices(all_characters, k=num_char))  # Generate random string for the new field
+    else:
+        new_field_data = random.randint(-1000, 1000)  # Generate random int for the new field
+    return new_field, new_field_data  # Return the new field and its data
+
+def mutate_editDataTypes(value):
+    if isinstance(value, str):
+        return random.randint(-10000, 10000)     # Change string datatypes, name or info, to int
+    elif isinstance(value, int) or isinstance(value, float):
+        num_chars = random.randint(1, 100)  # Number of characters to insert
+        return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num_chars))  # Change int or float datatypes, price, to string
+    
+def mutate_recover(field):
+    match field:
+        case "name" | "info":
+            all_characters = string.ascii_letters + string.digits + string.punctuation + string.whitespace
+            num_chars = random.randint(1, 100)  # Number of characters to insert
+            return ''.join(random.choices(all_characters, k=num_chars)) 
+        case "price":
+            random_data = random.uniform(-1000.0, 1000.0)  # Random data
+            return random_data
+    
+# ===================================== Specific mutation functions end =====================================
 
 def mutate_input(data):
     """Applies AFL-like mutations to JSON input while keeping it valid."""
@@ -114,51 +243,47 @@ def mutate_input(data):
     except json.JSONDecodeError:
         return None
 
-    mutation_types = ["bitflip", "byteflip", "insert", "delete", "crossover", "random", "newFields", "editDataTypes", "editData"]
-    original_fields = ["name", "price", "info"]
+    mutation_types = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes"]  # Mutation types
+    original_fields = ["name", "price", "info"]  # Fields to mutate
     field_toChange = random.choice(original_fields)
     mutation = random.choice(mutation_types)
+    all_characters = string.ascii_letters + string.digits + string.punctuation + string.whitespace
     # Test
     # field_toChange = "name"
-    # mutation = "editData"
+    # mutation = "delete"
+    print("Field to change:", field_toChange)
 
-    match mutation:
-        case "bitflip":
-            if "name" in parsed_data:
-                parsed_data["name"] = "".join(chr(ord(c) ^ 0x01) for c in parsed_data["name"])  # Bitwise XOR flip
-        case "byteflip":
-            if "info" in parsed_data and len(parsed_data["info"]) > 1:
-                idx = random.randint(0, len(parsed_data["info"]) - 1)
-                parsed_data["info"] = parsed_data["info"][:idx] + random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") + parsed_data["info"][idx+1:]
-        case "insert":
-            if "name" in parsed_data:
-                parsed_data["name"] += random.choice("XYZ")  # Insert valid character
-        case "delete":
-            # if random.choice([True, False]) and ("price" in parsed_data):
-            # parsed_data.pop("price", None)  # Remove price field (valid but edge case)
-            if random.choice([True, False]) and (field_toChange in parsed_data):
-                parsed_data.pop(field_toChange, None)  # Remove price field (valid but edge case)
-        case "crossover":
-            if "name" in parsed_data and "info" in parsed_data:
-                parsed_data["name"], parsed_data["info"] = parsed_data["info"], parsed_data["name"]  # Swap fields
-        case "random":
-            if "price" in parsed_data:
-                parsed_data["price"] = random.randint(-10000, 10000)  # Extreme price values
-        case "newFields":
-            parsed_data["id"] = random.randint(-100, 100000)    #Add new field id
-        case "editDataTypes":
-            if (field_toChange in parsed_data):
-                if (field_toChange == "price"):
-                    parsed_data[field_toChange] = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=10)) # Change price to string datatype, fail to send req
-                else:
-                    parsed_data[field_toChange] = random.randint(-10000, 10000)     # Change string datatypes, name or info, to int
-        case "editData":
-            if (field_toChange in parsed_data):
-                if (field_toChange == "price"):
-                    parsed_data[field_toChange] = random.randint(-10000, 10000)  # Change price values
-                else:
-                    parsed_data[field_toChange] = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=10))    # Change name/info values
+    if mutation == "insert":
+        new_field, new_field_data = mutate_insert(all_characters)  # Generate random new field with random data
+        parsed_data[new_field] = new_field_data
+        return json.dumps(parsed_data)
 
+    if field_toChange in parsed_data and parsed_data[field_toChange] is not None and parsed_data[field_toChange] != "":
+        value = parsed_data[field_toChange]
+        match mutation:
+            case "bitflip":
+                parsed_data[field_toChange] = mutate_bitflip(value)  # Bitwise XOR flip
+            case "byteflip":
+                parsed_data[field_toChange] = mutate_byteflip(value)  # Byte flip
+            case "append":
+                parsed_data[field_toChange] = mutate_append(value, all_characters)      # Append random data to existing ones in the field
+            case "delete":
+                parsed_data.pop(field_toChange, None)  # Remove exising field
+            case "replace":
+                parsed_data[field_toChange] = mutate_replace(value) # Replace exising data with random data in the field
+            case "editDataTypes":
+                parsed_data[field_toChange] = mutate_editDataTypes(value)  # Change data types of the field data
+    else:
+        check_meaningful_data = False   # checker for meaningful data in the parsed_data
+        for field in original_fields:   # parsed_data is considered meaningful if any of the original fields have some data
+            if field in parsed_data and parsed_data[field] is not None and parsed_data[field] != "":
+                check_meaningful_data = True    # if there is meaningful data, we do not need to recover old fields
+                print("MEANINGFUL field:", field, ", with data:", parsed_data[field])
+                break
+
+        if not check_meaningful_data:
+            parsed_data[field_toChange] = mutate_recover(field_toChange) # if there is no meaningful data, we recover the old field but with random data values
+            print("NO MEANINGFUL DATA, Recovering field:", field_toChange)
     return json.dumps(parsed_data)
 
 def send_fuzzed_request(fuzzed_data, CRASH_DIR):
@@ -217,23 +342,27 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
     """Main fuzzing loop implementing AFL logic."""
     load_seed_inputs(input_filepath)
 
+    add_original_seed = False  # Flag to add original seed to the queue
+
     i = 0
 
-    tracklist = {} # Track each seedObject and how many times it has been selected
-
     while i<5:
+        print("========================== Start while iteration ==========================")
         seedObject = choose_next()
         if not seedObject:
+            print("No more seeds to process.")
             break
         test_case = seedObject.data   # Extract data from SeedObject
         test_case_id = seedObject.id    # Extract id from SeedObject
+        print("SeedObject ID:", test_case_id, ", Seed_count: ", seedObject.selection_count, ", fuzz_count: ", seedObject.fuzz_count, ", SeedObject data:", test_case)
 
         energy = assign_energy(seedObject)  # Assign energy to the test case based on the exponential schedule
         for _ in range(energy):  # Adjust energy scaling factor
             fuzzed_payload = mutate_input(test_case)  # Mutate SeedObject data
+            print(f"Sending fuzzed data: {fuzzed_payload}")
             if not fuzzed_payload:
                 continue
-            seedObject.fuzz_count += 1  # Increment fuzz count for SeedObject f(i)
+            seedObject.increment_fuzz_count() # Increment fuzz count for SeedObject f(i)
             
             response_type = send_fuzzed_request(fuzzed_payload, CRASH_DIR)
 
@@ -242,15 +371,15 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
             if (priority <= 0.2):  # If the priority is low, skip reinsertion
                 continue
             else:
+                add_original_seed = True  # Set flag to add original seed to the queue since its mutation is interesting
                 newSeedObject = SeedObject(test_case_id, fuzzed_payload)    # Create new SeedObject of the mutated data for reinsertion
                 heapq.heappush(seed_queue, (-priority, test_case_id, newSeedObject))  # Push SeedObject to seed_queue instead of just the data
 
+        if add_original_seed:
+            # Reinsert the original seed into the queue with adjusted priority
+            print("Adding original seed to the queue")
+            heapq.heappush(seed_queue, (-0.5, test_case_id, seedObject))
         i += 1
 
-        tracklist[test_case_id] = (seedObject.selection_count, seedObject.fuzz_count)
-
-    print("Tracklist:")
-    for key, value in tracklist.items():
-        print(f"SeedObject ID: {key}, Selection Count: {value[0]}, Fuzz Count: {value[1]}")
 # if __name__ == "__main__":
 #     mainfuzz()
