@@ -9,6 +9,7 @@ from fuzzers.psoMutate_fuzzer import mainfuzz as psoMutateFuzz
 from fuzzers.assignEnergyExpoSchedule import mainfuzz as assignEnergyExpoScheduleFuzz
 from fuzzers.assignPathWeights_fuzzer import mainfuzz as assignPathWeightsFuzz
 from fuzzers.isInteresting_fromExpoSch import mainfuzz as isInterestingFuzz
+from fuzzers.fullLin_fuzzer import mainfuzz as fullLinFuzz
 
 # Replace with your Django app's base URL
 base_url = 'http://127.0.0.1:8000/datatb/product/'
@@ -39,7 +40,7 @@ if __name__ == "__main__":
     #   - fuzzer file will send interesting and failed inputs into output files
     # mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
     # psoMutateFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
-    # assignEnergyExpoScheduleFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
-    isInterestingFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
-
+    #assignEnergyExpoScheduleFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
+    #isInterestingFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
+    fullLinFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
     
