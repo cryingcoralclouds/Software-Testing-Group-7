@@ -507,7 +507,8 @@ def mutate_input(data, operator):
             parsed_data["info"] = bin(parsed_data["info"])[:idx] + random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") + bin(parsed_data["info"])[idx+1:]
     elif operator == "insert":
         if "name" in parsed_data:
-            print(parsed_data["name"], type(parsed_data["name"]))
+            if type(parsed_data["name"]) == int:
+                parsed_data["name"] = str(parsed_data["name"])
             parsed_data["name"] += random.choice("XYZ")  # Insert valid character
     elif operator == "delete":
         # if random.choice([True, False]) and ("price" in parsed_data):
