@@ -6,6 +6,7 @@ import heapq  # Priority queue
 import coverage  # For path discovery
 import struct  # For bit manipulation
 import string
+import hashlib
 
 # Django API URL
 BASE_URL = "http://127.0.0.1:8000/datatb/product/add/"
@@ -76,7 +77,7 @@ def next_power2(value):
         output <<= 1
     return output
 
-def assign_energy(seedObject):
+def assign_energy(seedObject, paths_found, runs):
     """Assigns energy to the test case using the exponential (FAST) schedule.
     
     p(i) = min( (ALPHA/THETA) * 2^(s(i)) / f(i), MAX_ENERGY )
@@ -99,14 +100,19 @@ def assign_energy(seedObject):
     MAX_FACTOR = BETA * 32
     MAX_MULT = 16
     s_i = seedObject.selection_count 
-    f_i = seedObject.fuzz_count    
-
-    if (s_i < 16):  # 16 is a heuristic choice that balances exploration and exploitation such that anything above is not meaningful fuzzing
-        # New seeds (aka selected less than 16 times) are more promising ones, hence allowed to grow exponentially
-        factor = (2**s_i) / (1 if f_i==0 else f_i)     
+    f_i = seedObject.fuzz_count   
+    if len(paths_found) > 0 and runs > 0:
+        mean = runs / len(paths_found)
     else:
-        # Prevents runaway energy values and keep energy multiplier within reasonable bounds. Scales down based on how much it has been fuzzed
-        factor = MAX_FACTOR / (1 if f_i==0 else next_power2(f_i) )   
+        mean = 0
+    
+    if s_i <= mean:
+        if s_i < 16:
+            factor = (2**s_i)
+        else:
+            factor = MAX_FACTOR
+    else:
+        factor = 0
     
     if (factor > MAX_FACTOR):       # In case scaling down is not enough, cap the energy to MAX_ENERGY
         factor = MAX_FACTOR
@@ -295,7 +301,7 @@ def send_fuzzed_request(fuzzed_data, CRASH_DIR):
 
         # Track execution path using coverage.py
         cov.start()
-        is_interesting = track_execution_path()
+        is_interesting, path_id = track_execution_path()
         cov.stop()
 
         # Handle crashes (status 500+)
@@ -315,7 +321,16 @@ def send_fuzzed_request(fuzzed_data, CRASH_DIR):
 def track_execution_path():
     """Tracks code coverage to detect new execution paths."""
     measured_paths = cov.get_data().measured_files()
-    return len(measured_paths) > 0  # Returns True if new paths are found
+
+    executed_lines = []
+    for file in measured_paths:
+        executed_lines.extend(cov.get_data().lines(file))
+    
+    if not executed_lines:
+        path_id = None
+    else: 
+        path_id = hashlib.md5(str(executed_lines).encode()).hexdigest()
+    return len(measured_paths) > 0, path_id  # Returns True if new paths are found
 
 def assign_path_weights(response_type):
     """Assigns higher weights to responses likely to cause errors."""
@@ -329,6 +344,7 @@ def assign_path_weights(response_type):
         return 0.2  # Normal response
 
 def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
+
     # Input/output directories
     INPUT_DIR = input_filepath
     # OUTPUT_DIR = outputInteresting_filepath
@@ -345,8 +361,9 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
     add_original_seed = False  # Flag to add original seed to the queue
 
     i = 0
+    paths_found = []
 
-    while i<5:
+    while i<100:
         print("========================== Start while iteration ==========================")
         seedObject = choose_next()
         if not seedObject:
@@ -356,7 +373,7 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
         test_case_id = seedObject.id    # Extract id from SeedObject
         print("SeedObject ID:", test_case_id, ", Seed_count: ", seedObject.selection_count, ", fuzz_count: ", seedObject.fuzz_count, ", SeedObject data:", test_case)
 
-        energy = assign_energy(seedObject)  # Assign energy to the test case based on the exponential schedule
+        energy = assign_energy(seedObject, paths_found, i)  # Assign energy to the test case based on the exponential schedule
         for _ in range(energy):  # Adjust energy scaling factor
             fuzzed_payload = mutate_input(test_case)  # Mutate SeedObject data
             print(f"Sending fuzzed data: {fuzzed_payload}")
@@ -364,7 +381,7 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
                 continue
             seedObject.increment_fuzz_count() # Increment fuzz count for SeedObject f(i)
             
-            response_type = send_fuzzed_request(fuzzed_payload, CRASH_DIR)
+            response_type, path_id = send_fuzzed_request(fuzzed_payload, CRASH_DIR)
 
             # Assign new weight and reinsert into queue if still relevant
             priority = assign_path_weights(response_type)
