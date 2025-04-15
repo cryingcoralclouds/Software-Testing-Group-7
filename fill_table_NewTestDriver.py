@@ -40,7 +40,7 @@ if __name__ == "__main__":
     #   - fuzzer file will send interesting and failed inputs into output files
     # mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
     # psoMutateFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
-    #assignEnergyExpoScheduleFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
+    # assignEnergyExpoScheduleFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
     #isInterestingFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
     fullLinFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
     

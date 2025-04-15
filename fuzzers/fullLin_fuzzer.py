@@ -361,19 +361,43 @@ def assign_energy(seedObject):
     return energy
 
 # ===================================== Specific mutation functions start =====================================
+def safe_byte_conversion(value):
+    while True:
+        try:
+            if isinstance(value, str):
+                return bytearray(value, 'utf-8')
+            elif isinstance(value, int):
+                num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
+                return bytearray(value.to_bytes(num_bytes, "little", signed=True))
+            elif isinstance(value, float):
+                return bytearray(struct.pack("d", value))  # Convert float to bytes
+            else:
+                raise TypeError("Unsupported type")
+        except OverflowError:
+            # Handle overflow by reducing the size of the value
+            if isinstance(value, int):
+                value = value // 2
+            elif isinstance(value, float):
+                value = value / 2.0
+            elif isinstance(value, str):
+                value = value[:len(value)//2]
+            else:
+                raise TypeError("Unsupported type")
+
 def mutate_bitflip(value):
     num_flips = random.randint(1, 8)  # Number of bits to flip (1-8)
     
     # Convert value to byte array based on their data type
-    if isinstance(value, str):
-        byte_array = bytearray(value, 'utf-8')
-    elif isinstance(value, int):
-        num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
-        byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
-    elif isinstance(value, float):
-        byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
-    else:
-        raise TypeError("Unsupported type")
+    # if isinstance(value, str):
+    #     byte_array = bytearray(value, 'utf-8')
+    # elif isinstance(value, int):
+    #     num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
+    #     byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
+    # elif isinstance(value, float):
+    #     byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
+    # else:
+    #     raise TypeError("Unsupported type")
+    byte_array = safe_byte_conversion(value)  # Convert value to byte array based on their data type
 
     # Perform random bit flips
     for _ in range(num_flips):
@@ -392,16 +416,17 @@ def mutate_bitflip(value):
 def mutate_byteflip(value):
     
     # Convert value to byte array based on their data type
-    if isinstance(value, str):
-        byte_array = bytearray(value, 'utf-8')
-    elif isinstance(value, int):
-        num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
-        byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
-    elif isinstance(value, float):
-        byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
-    else:
-        raise TypeError("Unsupported type")
+    # if isinstance(value, str):
+    #     byte_array = bytearray(value, 'utf-8')
+    # elif isinstance(value, int):
+    #     num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
+    #     byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
+    # elif isinstance(value, float):
+    #     byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
+    # else:
+    #     raise TypeError("Unsupported type")
     
+    byte_array = safe_byte_conversion(value)  # Convert value to byte array based on their data type
     num_flips = random.randint(1, max(1, len(byte_array)))  # Number of bytes to flip based on the number of bytes available in the value for flipping
     
     # Perform random byte flips
@@ -482,59 +507,60 @@ def mutate_recover(field):
     
 # ===================================== Specific mutation functions end =====================================
 
-def mutate_input(data, operator):
+def mutate_input(data, mutation_type=None):
     """Applies AFL-like mutations to JSON input while keeping it valid."""
     try:
         parsed_data = json.loads(data)
     except json.JSONDecodeError:
         return None
-
-    original_fields = ["name", "price", "info"]
+    mutation_types = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes"]  # Mutation types
+    original_fields = ["name", "price", "info"]  # Fields to mutate
     field_toChange = random.choice(original_fields)
+    if mutation_type is not None:
+        mutation = random.choice(mutation_types)
+    else:
+        mutation = mutation_type
+    all_characters = string.ascii_letters + string.digits + string.punctuation + string.whitespace
+    # Test
+    # field_toChange = "name"
+    # mutation = "delete"
+    print("Field to change:", field_toChange)
 
-    if operator == "bitflip":
-        if "name" in parsed_data:
-            if type(parsed_data["name"]) == int:
-                parsed_data["name"] = "".join(chr(ord(c) ^ 0x01) for c in bin(parsed_data["name"]))  # Bitwise XOR flip
-            else:
-                parsed_data["name"] = "".join(chr(ord(c) ^ 0x01) for c in parsed_data["name"])
-    elif operator == "byteflip":
-        if "info" in parsed_data and type(parsed_data["info"]) != int and len(parsed_data["info"]) > 1:
-            idx = random.randint(0, len(parsed_data["info"]) - 1)
-            parsed_data["info"] = parsed_data["info"][:idx] + random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") + parsed_data["info"][idx+1:]
-        elif "info" in parsed_data and type(parsed_data["info"]) == int and len(bin(parsed_data["info"])) > 1:
-            idx = random.randint(0, len(bin(parsed_data["info"])) - 1)
-            parsed_data["info"] = bin(parsed_data["info"])[:idx] + random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") + bin(parsed_data["info"])[idx+1:]
-    elif operator == "insert":
-        if "name" in parsed_data:
-            if type(parsed_data["name"]) == int:
-                parsed_data["name"] = str(parsed_data["name"])
-            parsed_data["name"] += random.choice("XYZ")  # Insert valid character
-    elif operator == "delete":
-        # if random.choice([True, False]) and ("price" in parsed_data):
-        #     parsed_data.pop("price", None)  # Remove price field (valid but edge case)
-        if random.choice([True, False]) and (field_toChange in parsed_data):
-            parsed_data.pop(field_toChange, None)  # Remove price field (valid but edge case)
-    elif operator == "crossover":
-        if "name" in parsed_data and "info" in parsed_data:
-            parsed_data["name"], parsed_data["info"] = parsed_data["info"], parsed_data["name"]  # Swap fields
-    elif operator == "random":
-        if "price" in parsed_data:
-            parsed_data["price"] = random.randint(-10000, 10000)  # Extreme price values
-    elif operator == "newFields":
-        parsed_data["id"] = random.randint(-100, 100000)    #Add new field id
-    elif operator == "editDataTypes":
-        if field_toChange in parsed_data:
-            if field_toChange == "price":
-                parsed_data[field_toChange] = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=10)) # Change price to string datatype, fail to send req
-            else:
-                parsed_data[field_toChange] = random.randint(-10000, 10000)     # Change string datatypes, name or info, to int
-    elif operator == "editData":
-        if field_toChange in parsed_data:
-            if field_toChange == "price":
-                parsed_data[field_toChange] = random.randint(-10000, 10000)  # Change price values
-            else:
-                parsed_data[field_toChange] = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=10))    # Change name/info values
+    if (parsed_data.get("id") is not None):  # If id field exists, remove it
+        parsed_data.pop("id", None)  # Remove id field for all inputs. Only if mutation type is "insert" then it should be added back in
+
+    if mutation == "insert":
+        # new_field, new_field_data = mutate_insert(all_characters)  # Generate random new field with random data
+        # parsed_data[new_field] = new_field_data
+        parsed_data["id"] = random.randint(-10000, 10000)   # for now fix to add id field with random data
+        return json.dumps(parsed_data)
+
+    if field_toChange in parsed_data and parsed_data[field_toChange] is not None and parsed_data[field_toChange] != "":
+        value = parsed_data[field_toChange]
+        match mutation:
+            case "bitflip":
+                parsed_data[field_toChange] = mutate_bitflip(value)  # Bitwise XOR flip
+            case "byteflip":
+                parsed_data[field_toChange] = mutate_byteflip(value)  # Byte flip
+            case "append":
+                parsed_data[field_toChange] = mutate_append(value, all_characters)      # Append random data to existing ones in the field
+            case "delete":
+                parsed_data.pop(field_toChange, None)  # Remove exising field
+            case "replace":
+                parsed_data[field_toChange] = mutate_replace(value) # Replace exising data with random data in the field
+            case "editDataTypes":
+                parsed_data[field_toChange] = mutate_editDataTypes(value)  # Change data types of the field data
+    else:
+        check_meaningful_data = False   # checker for meaningful data in the parsed_data
+        for field in original_fields:   # parsed_data is considered meaningful if any of the original fields have some data
+            if field in parsed_data and parsed_data[field] is not None and parsed_data[field] != "":
+                check_meaningful_data = True    # if there is meaningful data, we do not need to recover old fields
+                print("MEANINGFUL field:", field, ", with data:", parsed_data[field])
+                break
+
+        if not check_meaningful_data:
+            parsed_data[field_toChange] = mutate_recover(field_toChange) # if there is no meaningful data, we recover the old field but with random data values
+            print("NO MEANINGFUL DATA, Recovering field:", field_toChange)
     return json.dumps(parsed_data)
 
 def send_fuzzed_request(fuzzed_data, CRASH_DIR):
@@ -605,7 +631,8 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
     load_seed_inputs(INPUT_DIR)
 
     # Set of mutation operators
-    mutation_operators = ["bitflip", "byteflip", "insert", "delete", "crossover", "random", "newFields", "editDataTypes", "editData"]
+    # mutation_operators = ["bitflip", "byteflip", "insert", "delete", "crossover", "random", "newFields", "editDataTypes", "editData"]
+    mutation_operators = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes"]  # Mutation types
 
     # Initialize the MOpt manager with multiple swarms.
     mopt_manager = MOptManager(mutation_operators, num_swarms=3, pilot_fuzz_num=10, core_fuzz_num=20)
