@@ -115,19 +115,43 @@ def assign_energy(seedObject):
     return energy
 
 # ===================================== Specific mutation functions start =====================================
+def safe_byte_conversion(value):
+    while True:
+        try:
+            if isinstance(value, str):
+                return bytearray(value, 'utf-8')
+            elif isinstance(value, int):
+                num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
+                return bytearray(value.to_bytes(num_bytes, "little", signed=True))
+            elif isinstance(value, float):
+                return bytearray(struct.pack("d", value))  # Convert float to bytes
+            else:
+                raise TypeError("Unsupported type")
+        except OverflowError:
+            # Handle overflow by reducing the size of the value
+            if isinstance(value, int):
+                value = value // 2
+            elif isinstance(value, float):
+                value = value / 2.0
+            elif isinstance(value, str):
+                value = value[:len(value)//2]
+            else:
+                raise TypeError("Unsupported type")
+
 def mutate_bitflip(value):
     num_flips = random.randint(1, 8)  # Number of bits to flip (1-8)
     
     # Convert value to byte array based on their data type
-    if isinstance(value, str):
-        byte_array = bytearray(value, 'utf-8')
-    elif isinstance(value, int):
-        num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
-        byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
-    elif isinstance(value, float):
-        byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
-    else:
-        raise TypeError("Unsupported type")
+    # if isinstance(value, str):
+    #     byte_array = bytearray(value, 'utf-8')
+    # elif isinstance(value, int):
+    #     num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
+    #     byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
+    # elif isinstance(value, float):
+    #     byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
+    # else:
+    #     raise TypeError("Unsupported type")
+    byte_array = safe_byte_conversion(value)  # Convert value to byte array based on their data type
 
     # Perform random bit flips
     for _ in range(num_flips):
@@ -146,16 +170,17 @@ def mutate_bitflip(value):
 def mutate_byteflip(value):
     
     # Convert value to byte array based on their data type
-    if isinstance(value, str):
-        byte_array = bytearray(value, 'utf-8')
-    elif isinstance(value, int):
-        num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
-        byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
-    elif isinstance(value, float):
-        byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
-    else:
-        raise TypeError("Unsupported type")
+    # if isinstance(value, str):
+    #     byte_array = bytearray(value, 'utf-8')
+    # elif isinstance(value, int):
+    #     num_bytes = min((value.bit_length() + 7) // 8 or 1, 1024)  # Limit to 1024 bytes
+    #     byte_array = bytearray(value.to_bytes(num_bytes, "little", signed=True))
+    # elif isinstance(value, float):
+    #     byte_array = bytearray(struct.pack("d", value))  # Convert float to bytes
+    # else:
+    #     raise TypeError("Unsupported type")
     
+    byte_array = safe_byte_conversion(value)  # Convert value to byte array based on their data type
     num_flips = random.randint(1, max(1, len(byte_array)))  # Number of bytes to flip based on the number of bytes available in the value for flipping
     
     # Perform random byte flips
@@ -236,26 +261,32 @@ def mutate_recover(field):
     
 # ===================================== Specific mutation functions end =====================================
 
-def mutate_input(data):
+def mutate_input(data, mutation_type=None):
     """Applies AFL-like mutations to JSON input while keeping it valid."""
     try:
         parsed_data = json.loads(data)
     except json.JSONDecodeError:
         return None
-
     mutation_types = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes"]  # Mutation types
     original_fields = ["name", "price", "info"]  # Fields to mutate
     field_toChange = random.choice(original_fields)
-    mutation = random.choice(mutation_types)
+    if mutation_type is not None:
+        mutation = random.choice(mutation_types)
+    else:
+        mutation = mutation_type
     all_characters = string.ascii_letters + string.digits + string.punctuation + string.whitespace
     # Test
     # field_toChange = "name"
     # mutation = "delete"
     print("Field to change:", field_toChange)
 
+    if (parsed_data.get("id") is not None):  # If id field exists, remove it
+        parsed_data.pop("id", None)  # Remove id field for all inputs. Only if mutation type is "insert" then it should be added back in
+
     if mutation == "insert":
-        new_field, new_field_data = mutate_insert(all_characters)  # Generate random new field with random data
-        parsed_data[new_field] = new_field_data
+        # new_field, new_field_data = mutate_insert(all_characters)  # Generate random new field with random data
+        # parsed_data[new_field] = new_field_data
+        parsed_data["id"] = random.randint(-10000, 10000)   # for now fix to add id field with random data
         return json.dumps(parsed_data)
 
     if field_toChange in parsed_data and parsed_data[field_toChange] is not None and parsed_data[field_toChange] != "":
