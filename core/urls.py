@@ -13,7 +13,9 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from coverage import Coverage
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import include, path
 from rest_framework.authtoken.views import obtain_auth_token # <-- NEW
 
@@ -24,10 +26,16 @@ urlpatterns = [
     path('', include('django_dyn_dt.urls')), # <-- NEW: Dynamic_DT Routing   
 ]
 
+def dump_coverage(request):
+    Coverage.current().save()   # <-- writes out .coverage file
+    return HttpResponse("OK")
+
 # Lazy-load on routing is needed
 # During the first build, API is not yet generated
 try:
+    print("hello")
     urlpatterns.append( path("api/"      , include("api.urls"))    )
     urlpatterns.append( path("login/jwt/", view=obtain_auth_token) )
+    urlpatterns += [ path("__cov_dump__/", dump_coverage) ]
 except:
     pass

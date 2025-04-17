@@ -20,10 +20,6 @@ BASE_URL = "http://127.0.0.1:8000/datatb/product/add/"
 seed_queue = []
 test_case_id = 0
 
-# Initialise coverage tracking
-cov = Coverage(source=["api", "core", "home"])
-cov.start()
-
 # ===================================== Coverage functions start =====================================
 
 def get_coverage():
@@ -285,10 +281,11 @@ def send_fuzzed_request(fuzzed_data, CRASH_DIR):
         response = requests.post(BASE_URL, data=fuzzed_data, headers=headers)
         print(f"Response: {response.status_code}, {response.text}")
 
-        # get_response = get_request(BASE_URL, fuzzed_data)  # Get the response from the server
+        # Trigger a snapshot of coverage data to be dump into proj dir as .coverage file
+        r = requests.get("http://localhost:8000/__cov_dump__/")
+        assert r.status_code == 200
 
         is_interesting = track_execution_path(response)  # Check if new lines were hit
-        cov.start()
 
         # Reset coverage file to isolate inputs
         # if os.path.exists(".coverage"):
@@ -328,13 +325,11 @@ def get_request(url, json_data):
         print("Request failed:", e)
         return None
 
-def track_execution_path(covObj):
-    #save coverage
-    cov.stop()
-    cov.save()
+def track_execution_path(response):
 
     # get coverage report
     current_coverage = get_coverage()
+    # print("Current coverage:", current_coverage)
 
     # Check if new lines were hit
     if is_new_coverage(current_coverage):
@@ -371,7 +366,7 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
 
     i = 0
 
-    while i<100:
+    while i<5:
         test_case = choose_next()
         if not test_case:
             break
@@ -389,10 +384,6 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
             heapq.heappush(seed_queue, (-priority, test_case_id, fuzzed_payload))
 
         i += 1
-    cov.stop()
-    cov.save()
-    cov.report()
-    cov.html_report(directory="coverage_html_report")  # Save HTML report
 
 if __name__ == "__main__":
     mainfuzz("inputFolder", "outputFailFolder", "outputInterestingFolder")

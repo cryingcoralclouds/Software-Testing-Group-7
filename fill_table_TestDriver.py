@@ -31,17 +31,10 @@ python_exe = sys.executable
 if __name__ == "__main__":
 
     # Start django server with coverage
-    # django_proc = subprocess.Popen([
-    #     python_exe, "-m", "coverage", "run", 
-    #     # "--parallel-mode",  # Run in parallel mode so that can create multiple .coverage files
-    #     "--source=.",             # Specify the directory that we want to track
-    #     "manage.py", "runserver"
-    # ])
     django_proc = subprocess.Popen([
-        python_exe,
-        # "--parallel-mode",  # Run in parallel mode so that can create multiple .coverage files
-        # "--source=.",             # Specify the directory that we want to track
-        "manage.py", "runserver"
+        python_exe, "-m", "coverage", "run",
+        "manage.py", "runserver",
+        "--noreload"    # diable auto-reload to allow live snapshot of coverage
     ])
     print("Django server started")
 
