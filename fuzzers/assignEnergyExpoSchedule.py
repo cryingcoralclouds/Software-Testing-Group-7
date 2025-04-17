@@ -104,7 +104,7 @@ def assign_energy(seedObject, paths_found, runs):
     if len(paths_found) > 0 and runs > 0:
         mean = runs / len(paths_found)
     else:
-        mean = 0
+        mean = 100
     
     if s_i <= mean:
         if s_i < 16:

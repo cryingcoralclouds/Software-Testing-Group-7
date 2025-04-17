@@ -137,6 +137,7 @@ class MOptManager:
         self.core_fuzz_num = core_fuzz_num
 
     def pilot_fuzz(self, crash_dir):
+        global all_found_paths, runs
         # For each swarm, run a pilot fuzzing phase on pilot_fuzz_num test cases.
         # Returns a dict mapping each swarm to its efficiency.
         efficiencies = {}
@@ -166,8 +167,6 @@ class MOptManager:
 
                     swarm.update_results(op, response_type)
 
-                    global all_found_paths
-
                     # Assign new weight and reinsert into queue if still relevant
                     priority, all_found_paths = assign_path_weights(path_id, all_found_paths)
                     if (priority <= 0.2):  # If the priority is low, skip reinsertion
@@ -185,6 +184,7 @@ class MOptManager:
         return efficiencies
 
     def core_fuzz(self, best_swarm, crash_dir):
+        global all_found_paths, runs
         # Use the best swarm (selected from the pilot phase) to fuzz core_fuzz_num test cases.
         for _ in range(self.core_fuzz_num):
             seedObject = choose_next()
@@ -211,7 +211,6 @@ class MOptManager:
 
                 best_swarm.update_results(op, response_type)
 
-                global all_found_paths
                 # Assign new weight and reinsert into queue if still relevant
                 priority, all_found_paths = assign_path_weights(path_id, all_found_paths)
                 if (priority <= 0.2):  # If the priority is low, skip reinsertion
@@ -358,7 +357,7 @@ def assign_energy(seedObject, paths_found):
     if len(paths_found) > 0 and runs > 0:
         mean = runs / len(paths_found)
     else:
-        mean = 0
+        mean = 100
     
     if s_i <= mean:
         if s_i < 16:

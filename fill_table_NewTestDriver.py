@@ -10,6 +10,9 @@ from fuzzers.assignEnergyExpoSchedule import mainfuzz as assignEnergyExpoSchedul
 from fuzzers.assignPathWeights_fuzzer import mainfuzz as assignPathWeightsFuzz
 from fuzzers.isInteresting_fromExpoSch import mainfuzz as isInterestingFuzz
 from fuzzers.fullLin_fuzzer import mainfuzz as fullLinFuzz
+from fuzzers.fullQuad_fuzzer import mainfuzz as fullQuadFuzz
+from fuzzers.fullExpo_fuzzer import mainfuzz as fullExpoFuzz
+from fuzzers.fullFast_fuzzer import mainfuzz as fullFastFuzz
 
 # Replace with your Django app's base URL
 base_url = 'http://127.0.0.1:8000/datatb/product/'
@@ -42,5 +45,8 @@ if __name__ == "__main__":
     # psoMutateFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
     # assignEnergyExpoScheduleFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
     #isInterestingFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
-    fullLinFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
+    #fullLinFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
+    #fullQuadFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
+    fullExpoFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
+    #fullFastFuzz(input_filepath, outputFail_filepath, outputInteresting_filepath)
     
