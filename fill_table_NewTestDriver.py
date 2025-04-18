@@ -23,7 +23,7 @@ endpoint_url = 'add/'
 url = base_url + endpoint_url
 
 # To run this file, type in cmd:
-# python .\fill_table_NewTestDriver.py -i .\inputFolder\ -o .\outputFailFolder\ -oi .\outputInterestingFolder
+# python .\fill_table_NewTestDriver.py -i .\inputoutputFolder\inputFolder\ -o .\inputoutputFolder\outputFailFolder\ -oi .\inputoutputFolder\outputInterestingFolder
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Read and print a file's content.")

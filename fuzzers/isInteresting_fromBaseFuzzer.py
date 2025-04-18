@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 import requests
 import random
 import heapq  # Priority queue
@@ -10,6 +11,12 @@ import subprocess
 import sys
 from coverage import CoverageData, Coverage
 
+session = requests.Session()
+adapter = requests.adapters.HTTPAdapter(pool_connections=1,
+                                        pool_maxsize=1,
+                                        max_retries=0,
+                                        pool_block=False)
+session.mount("http://127.0.0.1:8000", adapter)
 
 global_coverage = {}
 
@@ -226,7 +233,7 @@ def mutate_input(data, mutation_type=None):
         parsed_data = json.loads(data)
     except json.JSONDecodeError:
         return None
-    mutation_types = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes"]  # Mutation types
+    mutation_types = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes", "largeData"]  # Mutation types
     original_fields = ["name", "price", "info"]  # Fields to mutate
     field_toChange = random.choice(original_fields)
     if mutation_type is None:
@@ -235,7 +242,7 @@ def mutate_input(data, mutation_type=None):
         mutation = mutation_type
     all_characters = string.ascii_letters + string.digits + string.punctuation + string.whitespace
 
-    print("Field to change:", field_toChange)
+    print(f"Field to change: {field_toChange} | Mutation type: {mutation}")
 
     if (parsed_data.get("id") is not None):  # If id field exists, remove it
         parsed_data.pop("id", None)  # Remove id field for all inputs. Only if mutation type is "insert" then it should be added back in
@@ -259,6 +266,10 @@ def mutate_input(data, mutation_type=None):
                 parsed_data[field_toChange] = mutate_replace(value) # Replace exising data with random data in the field
             # case "editDataTypes":
                 # parsed_data[field_toChange] = mutate_editDataTypes(value)  # Change data types of the field data
+            case "largeData":
+                num_word = random.randint(10 ** 3, 10**6)  # Number of characters to insert
+                extreme_data = "hello" * num_word  # Generate random string length for the info field
+                parsed_data["info"] = extreme_data  # Add extreme data to the field
     else:
         check_meaningful_data = False   # checker for meaningful data in the parsed_data
         for field in original_fields:   # parsed_data is considered meaningful if any of the original fields have some data
@@ -272,27 +283,31 @@ def mutate_input(data, mutation_type=None):
             print("NO MEANINGFUL DATA, Recovering field:", field_toChange)
     return json.dumps(parsed_data)
 
-def send_fuzzed_request(fuzzed_data, CRASH_DIR):
+def send_fuzzed_request(fuzzed_data, CRASH_DIR, OUTPUT_DIR):
     """Sends the fuzzed request and checks if it’s interesting."""
     headers = {"Content-Type": "application/json"}
     global test_case_id
     try:
         print(f"Fuzzed Payload: {fuzzed_data}")
         response = requests.post(BASE_URL, data=fuzzed_data, headers=headers)
+        race_condition_test()
         print(f"Response: {response.status_code}, {response.text}")
 
         # Trigger a snapshot of coverage data to be dump into proj dir as .coverage file
-        r = requests.get("http://localhost:8000/__cov_dump__/")
-        assert r.status_code == 200
+        # r = requests.get("http://localhost:8000/__cov_dump__/")
+        r = session.get("http://127.0.0.1:8000/__cov_dump__/")
+        # assert r.status_code == 200
 
         is_interesting = track_execution_path(response)  # Check if new lines were hit
 
-        # Reset coverage file to isolate inputs
-        # if os.path.exists(".coverage"):
-        #     os.remove(".coverage")
-
-        # Handle crashes (status 500+)
-        if response.status_code >= 500:
+        if response.status_code >= 400 and response.status_code < 500:
+            # Handle client errors (status 400-499)
+            interesting_file = os.path.join(OUTPUT_DIR, f"interesting_{test_case_id}.json")
+            with open(interesting_file, "w") as f:
+                f.write(fuzzed_data)
+            print(f"⚠️ Potential interesting saved to {interesting_file}")
+            return "interesting"
+        elif response.status_code >= 500:
             crash_file = os.path.join(CRASH_DIR, f"crash_{random.randint(1000, 9999)}.json")
             with open(crash_file, "w") as f:
                 f.write(fuzzed_data)
@@ -350,15 +365,39 @@ def assign_path_weights(response_type):
     else:
         return 0.2  # Normal response
 
+# ===================================== Edge case test functions start =====================================
+def race_condition_test():
+    headers = {"Content-Type": "application/json"}
+    num_threads = 50  # Number of concurrent requests to run
+    def send_request(i):
+        req_json = {"name": f"Race Condtion test {i}", "info": "TESTING RACE CONDITION", "price": "100"}
+        try:
+            response = requests.post(BASE_URL, headers=headers, json=req_json, timeout=5)
+            print("Race condition request %s response: %s", i, response.text)
+        except Exception as e:
+            print("Race condition request %s failed: %s", i, e)
+
+    list_threads = []
+    print("Race condition test started")
+    for i in range(num_threads):  # Start 20 threads
+        thread = threading.Thread(target=send_request, args=(i,))
+        list_threads.append(thread)
+        thread.start()
+
+    for thread in list_threads:
+        thread.join()
+    print("Race condition test completed.")
+# ===================================== Edge case test functions end =====================================
+
 def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
     # Input/output directories
     INPUT_DIR = input_filepath
-    # OUTPUT_DIR = outputInteresting_filepath
+    OUTPUT_DIR = outputInteresting_filepath
     CRASH_DIR = outputFail_filepath
 
     # Ensure directories exist
     os.makedirs(INPUT_DIR, exist_ok=True)
-    # os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.makedirs(CRASH_DIR, exist_ok=True)
 
     """Main fuzzing loop implementing AFL logic."""
@@ -377,7 +416,7 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
             if not fuzzed_payload:
                 continue
 
-            response_type = send_fuzzed_request(fuzzed_payload, CRASH_DIR)
+            response_type = send_fuzzed_request(fuzzed_payload, CRASH_DIR, OUTPUT_DIR)
 
             # Assign new weight and reinsert into queue if still relevant
             priority = assign_path_weights(response_type)
@@ -386,4 +425,4 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
         i += 1
 
 if __name__ == "__main__":
-    mainfuzz("inputFolder", "outputFailFolder", "outputInterestingFolder")
+    mainfuzz("inputoutputFolder/inputFolder", "inputoutputFolder/outputFailFolder", "inputoutputFolder/outputInterestingFolder")

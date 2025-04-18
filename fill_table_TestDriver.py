@@ -42,10 +42,10 @@ if __name__ == "__main__":
 
     print("Fuzzer started")
     fuzzer_proc = subprocess.Popen([
-        python_exe, "fuzzers/isinteresting_fromBaseFuzzer.py",
-        "-i", "inputFolder",
-        "-o", "outputFailFolder",
-        "-oi", "outputInterestingFolder"
+        python_exe, "fuzzers/isinteresting_fromBaseFuzzer.py"
+        # "-i", "inputoutputFolder/inputFolder",
+        # "-o", "inputoutputFolder/outputFailFolder",
+        # "-oi", "inputoutputFolder/outputInterestingFolder"
     ])
 
     fuzzer_proc.wait()  # Wait for the fuzzer to finish
