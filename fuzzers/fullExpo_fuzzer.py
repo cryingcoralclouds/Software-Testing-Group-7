@@ -588,7 +588,7 @@ def mutate_input(data, mutation_type=None):
         parsed_data = json.loads(data)
     except json.JSONDecodeError:
         return None
-    mutation_types = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes"]  # Mutation types
+    mutation_types = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes", "largeData"]  # Mutation types
     original_fields = ["name", "price", "info"]  # Fields to mutate
     field_toChange = random.choice(original_fields)
     if mutation_type is not None:
@@ -625,6 +625,10 @@ def mutate_input(data, mutation_type=None):
                 parsed_data[field_toChange] = mutate_replace(value) # Replace exising data with random data in the field
             case "editDataTypes":
                 parsed_data[field_toChange] = mutate_editDataTypes(value)  # Change data types of the field data
+            case "largeData":
+                num_word = random.randint(10 ** 3, 10**6)  # Number of characters to insert
+                extreme_data = "hello" * num_word  # Generate random string length for the info field
+                parsed_data["info"] = extreme_data  # Add extreme data to the field
     else:
         check_meaningful_data = False   # checker for meaningful data in the parsed_data
         for field in original_fields:   # parsed_data is considered meaningful if any of the original fields have some data
@@ -704,7 +708,7 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
 
     # Set of mutation operators
     # mutation_operators = ["bitflip", "byteflip", "insert", "delete", "crossover", "random", "newFields", "editDataTypes", "editData"]
-    mutation_operators = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes"]  # Mutation types
+    mutation_operators = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes", "largeData"]  # Mutation types
 
     # Initialize the MOpt manager with multiple swarms.
     mopt_manager = MOptManager(mutation_operators, num_swarms=3, pilot_fuzz_num=10, core_fuzz_num=20)
