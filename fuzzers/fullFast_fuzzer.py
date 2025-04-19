@@ -7,19 +7,21 @@ import coverage  # For path discovery
 import struct  # For bit manipulation
 import string
 import hashlib
+import sys
+from coverage import CoverageData, Coverage
 
 # Django API URL
 BASE_URL = "http://127.0.0.1:8000/datatb/product/add/"
 
-# # Input/output directories
-# INPUT_DIR = "input_dir"
-# OUTPUT_DIR = "output_dir"
-# CRASH_DIR = os.path.join(OUTPUT_DIR, "crashes")
+# Set up session for HTTP requests to reduce overhead of creating new connections each time
+session = requests.Session()
+adapter = requests.adapters.HTTPAdapter(pool_connections=1,
+                                        pool_maxsize=1,
+                                        max_retries=0,
+                                        pool_block=False)
+session.mount("http://127.0.0.1:8000", adapter)
 
-# # Ensure directories exist
-# os.makedirs(INPUT_DIR, exist_ok=True)
-# os.makedirs(OUTPUT_DIR, exist_ok=True)
-# os.makedirs(CRASH_DIR, exist_ok=True)
+global_coverage = {}
 
 # Priority queue for test case selection
 seed_queue = []
@@ -27,8 +29,66 @@ test_case_id = 0
 
 all_found_paths = {}
 
-# Initialize coverage tracking
-cov = coverage.Coverage()
+# ===================================== Coverage functions start =====================================
+
+def get_coverage():
+    # Get the python executable path
+    python_exe = sys.executable
+
+    # Only try to combine if the .coverage file exists
+    if os.path.exists(".coverage"):
+        print("Coverage file exist")
+        # try:
+        #     subprocess.run(
+        #         [python_exe, "-m", "coverage", "combine"],
+        #         check=True,
+        #         stdout=subprocess.DEVNULL,
+        #         stderr=subprocess.DEVNULL
+        #     )
+        # except subprocess.CalledProcessError as e:
+        #     print(f"Error combining coverage data: {e}")
+        
+        data = CoverageData()
+        data.read()
+        executed = {}
+        for filename in data.measured_files():
+            lines = data.lines(filename)
+            executed[filename] = set(lines)
+        return executed
+    else:
+        print("No .coverage file found.")
+        return {}
+
+def is_new_coverage(current):
+    global global_coverage
+    new_lines = False
+    for file, lines in current.items():
+        if file not in global_coverage:
+            global_coverage[file] = set()
+        unseen = lines - global_coverage[file]
+        if unseen:
+            global_coverage[file].update(unseen)
+            new_lines = True
+    if new_lines:
+        path_id = hashlib.md5(str(global_coverage[file]).encode()).hexdigest()
+        print("New coverage found:", path_id)
+    else:
+        path_id = None
+        print("No new coverage found.")
+    return new_lines, path_id
+
+def load_seed_inputs(INPUT_DIR):
+    """Load seed files into priority queue."""
+    global test_case_id
+    for filename in os.listdir(INPUT_DIR):
+        if filename.endswith(".json"):
+            with open(os.path.join(INPUT_DIR, filename), "r") as f:
+                data = f.read()
+                priority = random.random()  # Initial random priority
+                heapq.heappush(seed_queue, (-priority, test_case_id, data))
+                test_case_id += 1
+
+# ===================================== Coverage functions end =====================================
 
 # ============================ MOpt Classes ============================
 
@@ -106,7 +166,8 @@ class MOptSwarm:
             x_old = self.probabilities[op]
             local_best = self.local_best[op]
             # Use global efficiency for this operator if available; otherwise, fallback to current probability.
-            global_best = global_eff.get(op, x_old)
+            # global_best = global_eff.get(op, x_old)
+            global_best = global_eff.get(op, x_old) if global_eff.get(op) is not None else x_old
             v_new = self.w * v_old + self.local_coeff * r1 * (local_best - x_old) + self.global_coeff * r2 * (global_best - x_old)
             self.velocities[op] = v_new
             x_new = x_old + v_new
@@ -575,10 +636,11 @@ def send_fuzzed_request(fuzzed_data, CRASH_DIR):
         response = requests.post(BASE_URL, data=fuzzed_data, headers=headers)
         print(f"Response: {response.status_code}, {response.text}")
 
+        # Trigger a snapshot of coverage data to be dump into proj dir as .coverage file
+        r = session.get("http://127.0.0.1:8000/__cov_dump__/")
+
         # Track execution path using coverage.py
-        cov.start()
         is_interesting, path_id = track_execution_path()
-        cov.stop()
 
         # Handle crashes (status 500+)
         if response.status_code >= 500:
@@ -595,18 +657,12 @@ def send_fuzzed_request(fuzzed_data, CRASH_DIR):
         return "error", None
 
 def track_execution_path():
-    """Tracks code coverage to detect new execution paths."""
-    measured_paths = cov.get_data().measured_files()
+    # get coverage report
+    current_coverage = get_coverage()
+    # print("Current coverage:", current_coverage)
 
-    executed_lines = []
-    for file in measured_paths:
-        executed_lines.extend(cov.get_data().lines(file))
-    
-    if not executed_lines:
-        path_id = None
-    else: 
-        path_id = hashlib.md5(str(executed_lines).encode()).hexdigest()
-    return len(measured_paths) > 0, path_id  # Returns True if new paths are found
+    # Check if new lines were hit
+    return is_new_coverage(current_coverage)
 
 def assign_path_weights(path_id, all_found_paths):
     """Assigns higher weights to responses likely to cause errors."""
@@ -650,3 +706,5 @@ def mainfuzz(input_filepath, outputFail_filepath, outputInteresting_filepath):
 
 # Example usage:
 # mainfuzz("input_dir", "crash_dir", "output_interesting_dir")
+if __name__ == "__main__":
+    mainfuzz("inputoutputFolder/inputFolder", "inputoutputFolder/outputFailFolder", "inputoutputFolder/outputInterestingFolder")
