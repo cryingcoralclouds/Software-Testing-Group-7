@@ -1,0 +1,7 @@
+input data,datetime occurred,bug type,error message
+"{""name"": ""LoKmBHNTJr"", ""info"": ""BYDi"", ""price"": 98}",2025-04-20 17:24:37,timeout,Request timed out after 5s
+"{""name"": ""jfXLrTBJqz"", ""info"": ""fcXj"", ""price"": 44}",2025-04-20 17:24:37,timeout,Request timed out after 5s
+"{""name"": ""ZZVoMNkeoV"", ""info"": ""PGQo"", ""price"": 90}",2025-04-20 17:24:38,timeout,Request timed out after 5s
+"{""name"": ""HqMEBQKbJv"", ""info"": ""IDPT"", ""price"": 29}",2025-04-20 17:24:38,timeout,Request timed out after 5s
+"{""name"": ""XgAJBJjiXY"", ""info"": ""HBMc"", ""price"": 81}",2025-04-20 17:24:38,timeout,Request timed out after 5s
+"{""name"": ""NXzPfjgWFA"", ""info"": ""bsGz"", ""price"": 40}",2025-04-20 17:24:38,timeout,Request timed out after 5s

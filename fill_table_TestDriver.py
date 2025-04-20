@@ -8,7 +8,7 @@ from fuzzers.psoMutate_fuzzer import mainfuzz as psoMutateFuzz
 from fuzzers.assignEnergyExpoSchedule import mainfuzz as assignEnergyExpoScheduleFuzz
 from fuzzers.assignPathWeights_fuzzer import mainfuzz as assignPathWeightsFuzz
 from fuzzers.isInteresting_fromBaseFuzzer import mainfuzz as isInterestingFuzz
-from fuzzers.fullLin_fuzzer import mainfuzz as fullLinFuzz
+# from fuzzers.fullLin_fuzzer import mainfuzz as fullLinFuzz
 import subprocess
 import time
 import sys

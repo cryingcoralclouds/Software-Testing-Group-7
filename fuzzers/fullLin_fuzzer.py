@@ -10,6 +10,7 @@ import hashlib
 import sys
 from coverage import CoverageData, Coverage
 from specificTestCase.testLargeData import main as testLargeDataMain
+from specificTestCase.testRaceCondition import main as testRaceConditionMain
 
 # Django API URL
 BASE_URL = "http://127.0.0.1:8000/datatb/product/add/"
@@ -32,6 +33,7 @@ all_found_paths = {}
 
 # Special test case error flags
 foundLargeDataError = False
+foundRaceConditionError = False
 
 # ===================================== Coverage functions start =====================================
 
@@ -637,10 +639,14 @@ def mutate_input(data, mutation_type=None):
 
 def send_fuzzed_request(fuzzed_data, CRASH_DIR):
     """Sends the fuzzed request and checks if it’s interesting."""
+    global foundRaceConditionError
     headers = {"Content-Type": "application/json"}
     try:
         response = requests.post(BASE_URL, data=fuzzed_data, headers=headers)
         print(f"Response: {response.status_code}, {response.text}")
+
+        if not foundRaceConditionError:
+            foundRaceConditionError = testRaceConditionMain()
 
         # Trigger a snapshot of coverage data to be dump into proj dir as .coverage file
         r = session.get("http://127.0.0.1:8000/__cov_dump__/")
