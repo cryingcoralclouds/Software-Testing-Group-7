@@ -1,0 +1,3 @@
+input data,datetime occurred,bug type,error message
+1300 MB,2025-04-20 16:58:00,exception,"ConnectionError(ProtocolError('Connection aborted.', OSError(10055, 'An operation on a socket could not be performed because the system lacked sufficient buffer space or because a queue was full', None, 10055, None)))"
+1500 MB,2025-04-20 16:58:12,exception,"ConnectionError(ProtocolError('Connection aborted.', OSError(10055, 'An operation on a socket could not be performed because the system lacked sufficient buffer space or because a queue was full', None, 10055, None)))"

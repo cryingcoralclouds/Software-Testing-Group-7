@@ -42,9 +42,9 @@ if __name__ == "__main__":
 
     print("Fuzzer started")
     fuzzer_proc = subprocess.Popen([
-        # python_exe, "fuzzers/fullExpo_fuzzer.py"
+        python_exe, "fuzzers/fullExpo_fuzzer.py"
         # python_exe, "fuzzers/fullFast_fuzzer.py"
-        python_exe, "fuzzers/fullLin_fuzzer.py"
+        # python_exe, "fuzzers/fullLin_fuzzer.py"
         # python_exe, "fuzzers/fullQuad_fuzzer.py"
         # python_exe, "fuzzers/base_fuzzer.py"
         # python_exe, "fuzzers/dummy_fuzzer.py"

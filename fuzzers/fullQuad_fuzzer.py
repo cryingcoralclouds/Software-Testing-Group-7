@@ -9,6 +9,7 @@ import string
 import hashlib
 import sys
 from coverage import CoverageData, Coverage
+from specificTestCase.testLargeData import main as testLargeDataMain
 
 # Django API URL
 BASE_URL = "http://127.0.0.1:8000/datatb/product/add/"
@@ -28,6 +29,9 @@ seed_queue = []
 test_case_id = 0
 
 all_found_paths = {}
+
+# Special test case error flags
+foundLargeDataError = False
 
 # ===================================== Coverage functions start =====================================
 
@@ -570,6 +574,7 @@ def mutate_recover(field):
 
 def mutate_input(data, mutation_type=None):
     """Applies AFL-like mutations to JSON input while keeping it valid."""
+    global foundLargeDataError
     try:
         parsed_data = json.loads(data)
     except json.JSONDecodeError:
@@ -612,9 +617,11 @@ def mutate_input(data, mutation_type=None):
             case "editDataTypes":
                 parsed_data[field_toChange] = mutate_editDataTypes(value)  # Change data types of the field data
             case "largeData":
-                num_word = random.randint(10 ** 3, 10**6)  # Number of characters to insert
-                extreme_data = "hello" * num_word  # Generate random string length for the info field
-                parsed_data["info"] = extreme_data  # Add extreme data to the field
+                # num_word = random.randint(10 ** 3, 10**7)  # Number of characters to insert
+                # extreme_data = "hello" * num_word  # Generate random string length for the info field
+                # parsed_data["info"] = extreme_data  # Add extreme data to the field
+                if not foundLargeDataError:
+                    foundLargeDataError = testLargeDataMain()
     else:
         check_meaningful_data = False   # checker for meaningful data in the parsed_data
         for field in original_fields:   # parsed_data is considered meaningful if any of the original fields have some data
