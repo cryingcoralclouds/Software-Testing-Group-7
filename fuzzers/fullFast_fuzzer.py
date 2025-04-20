@@ -11,9 +11,12 @@ import sys
 from coverage import CoverageData, Coverage
 from specificTestCase.testLargeData import main as testLargeDataMain
 from specificTestCase.testRaceCondition import main as testRaceConditionMain
+import datetime
+import pandas as pd
 
 # Django API URL
 BASE_URL = "http://127.0.0.1:8000/datatb/product/add/"
+LOG_FILE = 'inputoutputFolder/fuzzBadReqErrors.csv'
 
 # Set up session for HTTP requests to reduce overhead of creating new connections each time
 session = requests.Session()
@@ -521,11 +524,11 @@ def mutate_append(value, all_characters):
         return value + ''.join(random.choices(all_characters, k=num_chars)) 
 
     elif isinstance(value, int):
-        mutation = random.randint(-1000, 1000)  # Random addition or subtraction
+        mutation = random.randint(-10000000, 10000000)  # Random addition or subtraction
         return value + mutation
 
     elif isinstance(value, float):
-        mutation = random.uniform(-1000.0, 1000.0)  # Random addition or subtraction
+        mutation = random.uniform(-10000000.0, 10000000.0)  # Random addition or subtraction
         return value + mutation
 
     else:
@@ -539,11 +542,11 @@ def mutate_replace(value):
         return ''.join(random.choices(all_characters, k=num_chars)) 
 
     elif isinstance(value, int):
-        random_data = random.randint(-1000, 1000)  # Random data
+        random_data = random.randint(-10000000, 10000000)  # Random data
         return random_data
 
     elif isinstance(value, float):
-        random_data = random.uniform(-1000.0, 1000.0)  # Random data
+        random_data = random.uniform(-10000000.0, 10000000.0)  # Random data
         return random_data
 
     else:
@@ -622,7 +625,8 @@ def mutate_input(data, mutation_type=None):
             case "replace":
                 parsed_data[field_toChange] = mutate_replace(value) # Replace exising data with random data in the field
             case "editDataTypes":
-                parsed_data[field_toChange] = mutate_editDataTypes(value)  # Change data types of the field data
+                if field_toChange != "price":   #price alrdy has a checker to ensure it is an int or float only
+                    parsed_data[field_toChange] = mutate_editDataTypes(value)  # Change data types of the field data
             case "largeData":
                 # num_word = random.randint(10 ** 3, 10**7)  # Number of characters to insert
                 # extreme_data = "hello" * num_word  # Generate random string length for the info field
@@ -645,6 +649,7 @@ def mutate_input(data, mutation_type=None):
 def send_fuzzed_request(fuzzed_data, CRASH_DIR):
     """Sends the fuzzed request and checks if it’s interesting."""
     global foundRaceConditionError
+    records = []
     headers = {"Content-Type": "application/json"}
     try:
         response = requests.post(BASE_URL, data=fuzzed_data, headers=headers)
@@ -659,6 +664,11 @@ def send_fuzzed_request(fuzzed_data, CRASH_DIR):
         # Track execution path using coverage.py
         is_interesting, path_id = track_execution_path()
 
+        if response.status_code == 400: # Bad req unlikely to go through, so less interesting
+            records.append([fuzzed_data, datetime.datetime.now(), "Bad Request", response.text])
+            write_to_csv(LOG_FILE, records)
+            return 'normal', path_id
+
         # Handle crashes (status 500+)
         if response.status_code >= 500:
             crash_file = os.path.join(CRASH_DIR, f"crash_{random.randint(1000, 9999)}.json")
@@ -672,6 +682,22 @@ def send_fuzzed_request(fuzzed_data, CRASH_DIR):
     except Exception as e:
         print(f"Request failed: {str(e)}")
         return "error", None
+
+def write_to_csv(file_path, records):
+    if records:
+        df = pd.DataFrame(records, columns=[
+            'input data',
+            'datetime occurred',
+            'bug type',
+            'error message'
+        ])
+        file_exists = os.path.isfile(file_path)
+        df.to_csv(
+            file_path,
+            mode='a' if file_exists else 'w',   # append vs. new
+            header=not file_exists,             # header only once
+            index=False
+        )
 
 def track_execution_path():
     # get coverage report
