@@ -14,6 +14,8 @@ from coverage import CoverageData, Coverage
 
 foundLargeDataError = False
 
+# ===================================== MAIN SEED OBJECT =====================================
+
 @dataclass(order=True)
 class Seed:
     """Represents a test input in the Django fuzzing queue."""
@@ -34,7 +36,7 @@ class Seed:
     number_of_commands_executed: int = field(default=0, compare=False)  # Number of commands executed in this seed
     id: int = field(default=0, compare=False)  # Unique ID for the seed
 
-# ===================================== Specific mutation functions start =====================================
+# ===================================== SPECIFIC MUTATION FUNCTIONS =====================================
 def safe_byte_conversion(value):
     while True:
         try:
@@ -156,7 +158,7 @@ def mutate_recover(field):
             random_data = random.uniform(-1000.0, 1000.0)  # Random data
             return random_data
     
-# ===================================== Specific mutation functions end =====================================
+# ===================================== MAIN MUTATION FUNCTION =====================================
 
 def mutate_input(seed: Seed, rng: random.Random = None, mutation_type: str = None) -> Optional[Dict]:
     """Applies AFL-like mutations to JSON input while keeping it valid."""
@@ -213,6 +215,8 @@ def mutate_input(seed: Seed, rng: random.Random = None, mutation_type: str = Non
             print("NO MEANINGFUL DATA, Recovering field:", field_toChange)
     return parsed_data  # Return the modified data without converting it to JSON
 
+# ===================================== IS INTERESTING FUNCTIONS =====================================
+
 def is_interesting(
     seed: Seed,
     seen_combinations: Set[Tuple[str, str]],
@@ -232,7 +236,30 @@ def is_interesting(
     # Check if new lines were hit
     return is_new_coverage(current_coverage, global_coverage)
 
-# ===================================== Coverage functions start =====================================
+# ===================================== IS ERROR FUNCTIONS =====================================
+
+def is_error(seed: Seed, actual_response, expected_responses: List[List[int]]) -> bool:
+    """
+    Determines if the actual BLE response indicates an error by:
+    - Checking if it does not match any of the expected valid responses.
+    - Checking if authentication using the DEFAULT_PASSCODE fails.
+    """
+    # if actual_response.status_code == 400: # Bad req unlikely to go through, so less interesting
+    #         records.append([fuzzed_data, datetime.datetime.now(), "Bad Request", response.text])
+    #         write_to_csv(LOG_FILE, records)
+    #         return 'normal', path_id
+
+    # Handle crashes (status 500+)
+    if actual_response.status_code >= 500:
+        # crash_file = os.path.join(CRASH_DIR, f"crash_{random.randint(1000, 9999)}.json")
+        # with open(crash_file, "w") as f:
+        #     f.write(fuzzed_data)
+        # print(f"⚠️ Potential crash saved to {crash_file}")
+        return "crash"
+
+    return False
+
+# ===================================== COVERAGE FUNCTIONS =====================================
 
 def get_coverage():
     # Only try to combine if the .coverage file exists
@@ -265,8 +292,7 @@ def is_new_coverage(current, global_coverage=None):
         path_id = None
         print("No new coverage found.")
     return new_lines, path_id
-# ===================================== Coverage functions end =====================================
-
+# ===================================== ASSIGN ENERGY FUNCTIONS =====================================
 # def assign_energy(seedObject, paths_found):
 #     """Assigns energy to the test case using the exponential (FAST) schedule.
     
@@ -310,25 +336,3 @@ def is_new_coverage(current, global_coverage=None):
 
 #     energy = int(min((ALPHA * factor / BETA), (MAX_MULT * 100) ) )  # Compute energy according to the exponential schedule
 #     return energy
-
-# not used for generalised fuzzer===============================
-class SeedObject:
-    def __init__(self, id, data):
-        self.id = id
-        self.data = data
-        self.selection_count = 0
-        self.fuzz_count = 0
-        self.pr
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-    # def __repr__(self):
-    #     return self.__str__()
-    
-    def increment_selection_count(self):
-        self.selection_count += 1
-    
-    def increment_fuzz_count(self):
-        self.fuzz_count += 1
-# not used for generalised fuzzer===============================

@@ -9,7 +9,7 @@ import time
 import random
 from typing import List, Optional, Set, Tuple
 
-from utils import Seed, mutate_input, is_interesting
+from utils import Seed, mutate_input, is_interesting, is_error
 
 # from ble_mutator_copy import mutate_input
 # from utils import (
@@ -33,7 +33,7 @@ class Fuzzer:
     ):
         self.target = target
         self.target_name = target_name
-        # self.expected_responses = expected_responses
+        self.expected_responses = []
 
         self.seed_queue = []
         # self.failure_queue: List[Seed] = []
@@ -141,11 +141,11 @@ class Fuzzer:
                     
 
         #             # Comment out for no errors or bugs that do not cause crashes to failure queue
-        #             # if is_error(mutated_seed, mutated_seed.data[-1], response, self.expected_responses):
-        #             #     mutated_seed.is_error_detected = True
-        #             #     self.failure_queue.append(mutated_seed)
-        #             #     self._save(self.crash_dir, mutated_seed)
-        #             #     break
+                    if is_error(mutated_seed, response, self.expected_responses):
+                        mutated_seed.is_error_detected = True
+                        # self.failure_queue.append(mutated_seed)
+                        # self._save(self.crash_dir, mutated_seed)
+                        break
                     
 
         #             # comment out to run and finish th fuzzer, no interesting cases are added to Seed Queue
