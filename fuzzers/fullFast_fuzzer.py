@@ -592,7 +592,7 @@ def mutate_input(data, mutation_type=None):
     mutation_types = ["bitflip", "byteflip", "append", "delete", "replace", "insert", "editDataTypes", "largeData"]  # Mutation types
     original_fields = ["name", "price", "info"]  # Fields to mutate
     field_toChange = random.choice(original_fields)
-    if mutation_type is not None:
+    if mutation_type is None:
         mutation = random.choice(mutation_types)
     else:
         mutation = mutation_type
