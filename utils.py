@@ -5,10 +5,12 @@ import os
 from dataclasses import dataclass, field
 import string
 import struct
+import sys
 from typing import List, Dict, Set, Tuple, Any, Optional
 import time
 from fuzzers.specificTestCase.testLargeData import main as testLargeDataMain
 from fuzzers.specificTestCase.testRaceCondition import main as testRaceConditionMain
+from coverage import CoverageData, Coverage
 
 foundLargeDataError = False
 
@@ -210,6 +212,60 @@ def mutate_input(seed: Seed, rng: random.Random = None, mutation_type: str = Non
             parsed_data[field_toChange] = mutate_recover(field_toChange) # if there is no meaningful data, we recover the old field but with random data values
             print("NO MEANINGFUL DATA, Recovering field:", field_toChange)
     return parsed_data  # Return the modified data without converting it to JSON
+
+def is_interesting(
+    seed: Seed,
+    seen_combinations: Set[Tuple[str, str]],
+    response_codes_seen: Set[int],
+    global_coverage: Dict
+) -> bool:
+    """
+    Determines if a seed is 'interesting' based on:
+    - New input/output (path/response) combinations.
+    - New/unseen response codes.
+    - Long or complex sequences.
+    """
+    # get coverage report
+    current_coverage = get_coverage()
+    # print("Current coverage:", current_coverage)
+
+    # Check if new lines were hit
+    return is_new_coverage(current_coverage, global_coverage)
+
+# ===================================== Coverage functions start =====================================
+
+def get_coverage():
+    # Only try to combine if the .coverage file exists
+    if os.path.exists(".coverage"):
+        print("Coverage file exist")
+        data = CoverageData()
+        data.read()
+        executed = {}
+        for filename in data.measured_files():
+            lines = data.lines(filename)
+            executed[filename] = set(lines)
+        return executed
+    else:
+        print("No .coverage file found.")
+        return {}
+
+def is_new_coverage(current, global_coverage=None):
+    new_lines = False
+    for file, lines in current.items():
+        if file not in global_coverage:
+            global_coverage[file] = set()
+        unseen = lines - global_coverage[file]
+        if unseen:
+            global_coverage[file].update(unseen)
+            new_lines = True
+    if new_lines:
+        path_id = hashlib.md5(str(global_coverage[file]).encode()).hexdigest()
+        print("New coverage found:", path_id)
+    else:
+        path_id = None
+        print("No new coverage found.")
+    return new_lines, path_id
+# ===================================== Coverage functions end =====================================
 
 # def assign_energy(seedObject, paths_found):
 #     """Assigns energy to the test case using the exponential (FAST) schedule.

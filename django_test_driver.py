@@ -54,6 +54,14 @@ class DjangoTarget:
         self.headers = {"Content-Type": "application/json"}
         self.seed_queue = []
 
+        # Set up session for HTTP requests to reduce overhead of creating new connections each time
+        self.session = requests.Session()
+        self.adapter = requests.adapters.HTTPAdapter(pool_connections=1,
+                                                pool_maxsize=1,
+                                                max_retries=0,
+                                                pool_block=False)
+        self.session.mount("http://127.0.0.1:8000", self.adapter)
+
     async def setup(self):
         self.django_proc = subprocess.Popen(self.command)
 
@@ -68,6 +76,10 @@ class DjangoTarget:
     async def send_input(self, dict_data: Dict):
         json_data = json.dumps(dict_data)
         response = requests.post(BASE_URL, data=json_data, headers=self.headers)
+
+        # Trigger a snapshot of coverage data to be dump into proj dir as .coverage file
+        r = self.session.get("http://127.0.0.1:8000/__cov_dump__/")
+        
         return response
 
     # def get_logs(self) -> str:

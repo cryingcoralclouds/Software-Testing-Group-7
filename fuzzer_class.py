@@ -9,7 +9,7 @@ import time
 import random
 from typing import List, Optional, Set, Tuple
 
-from utils import Seed, mutate_input
+from utils import Seed, mutate_input, is_interesting
 
 # from ble_mutator_copy import mutate_input
 # from utils import (
@@ -54,6 +54,8 @@ class Fuzzer:
         for seed in seed_inputs:
             heapq.heappush(self.seed_queue, seed)
         # print(f"item: {heapq.heappop(self.seed_queue)}")
+
+        self.global_coverage = {}  # Initialize global coverage here
 
 
     def choose_next(self) -> Optional[Seed]:
@@ -147,11 +149,12 @@ class Fuzzer:
                     
 
         #             # comment out to run and finish th fuzzer, no interesting cases are added to Seed Queue
-        #             # if is_interesting(mutated_seed, self.seen_combinations, self.response_codes_seen):
-        #             #     mutated_seed.is_interesting = True
-        #             #     mutated_seed.priority = assign_path_weights(mutated_seed)
-        #             #     self._save(self.interesting_dir, mutated_seed)
-        #             #     heapq.heappush(self.seed_queue, mutated_seed)
+                    is_interesting_check, path_id = is_interesting(mutated_seed, self.seen_combinations, self.response_codes_seen, self.global_coverage)
+                    if is_interesting_check:
+                        mutated_seed.is_interesting = True
+                        # mutated_seed.priority = assign_path_weights(mutated_seed)
+                        # self._save(self.interesting_dir, mutated_seed)
+                        # heapq.heappush(self.seed_queue, mutated_seed)
 
                 except Exception as e:
                     print(f"[!] Error during seed execution: {e}")
