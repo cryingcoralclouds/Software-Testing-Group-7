@@ -9,7 +9,7 @@ import time
 import random
 from typing import List, Optional, Set, Tuple
 
-from utils import Seed
+from utils import Seed, mutate_input
 
 # from ble_mutator_copy import mutate_input
 # from utils import (
@@ -101,30 +101,32 @@ class Fuzzer:
 
             for _ in range(2): # only mutate once, assignEnergy and energy of seed does not affect fuzzing
         #     # for _ in range(max(1, int(energy * 5))):
-        #         rng = random.Random(117)
-        #         # mutated_data = mutate_input(current_seed, rng=rng)
-        #         mutated_data = current_seed.data.copy() # comment for no mutations
+                rng = random.Random(117)
+                mutated_data = mutate_input(current_seed, rng=rng)
+                # mutated_data = current_seed.data.copy() # comment for no mutations
 
 
-        #         flat_bytes = bytes([b for cmd in mutated_data for b in cmd])
-        #         path_hash = hashlib.sha256(flat_bytes).hexdigest()
+                # flat_bytes = bytes([b for cmd in mutated_data for b in cmd])
+                # path_hash = hashlib.sha256(flat_bytes).hexdigest()
 
-        #         mutated_seed = Seed(
-        #             priority=1.0,
-        #             energy=energy,
-        #             data=mutated_data,
-        #             parent_hash=current_seed.path_hash,
-        #             path_hash=path_hash,
-        #             mutation_note="mutation",
-        #             timestamp=time.time(),
-        #             logs=[]
-        #         )
+                mutated_seed = Seed(
+                    priority=1.0,
+                    # energy=energy,
+                    data=mutated_data,
+                    parent_hash=current_seed.path_hash,
+                    # path_hash=path_hash,
+                    mutation_note="mutation",
+                    timestamp=time.time(),
+                    logs=[]
+                )
 
-        #         self.mutated_seed_count += 1
+                self.mutated_seed_count += 1
                 try:
                     # seed = heapq.heappop(self.seed_queue)
                     # print(f"Seed: {seed.data}")
-                    response = await self.target.send_input(json.dumps(current_seed.data))
+                    # response = await self.target.send_input(json.dumps(current_seed.data))
+                    print(f"Mutated Seed: {mutated_seed.data}")
+                    response = await self.target.send_input(mutated_seed.data)
         #             mutated_seed.response = bytes(response)
         #             mutated_seed.response_hash = hashlib.sha256(mutated_seed.response).hexdigest()
 
@@ -161,7 +163,7 @@ class Fuzzer:
         # ========================== LOGGING AFTER FUZZER ENDS ==========================
         # print("Getting Logs from target...")
         # lines = self.target.get_logs()  # Return a list of all log lines, change for target, analysis
-        # await asyncio.sleep(1)
+        await asyncio.sleep(1)
         await self.target.teardown()
         print("Target teardown complete...")
 

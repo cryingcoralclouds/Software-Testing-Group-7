@@ -1,8 +1,10 @@
+import json
 import random
 import subprocess
 import sys
 import asyncio
 import time
+from typing import Dict
 
 import requests
 import heapq
@@ -63,7 +65,8 @@ class DjangoTarget:
         except subprocess.TimeoutExpired:
             self.django_proc.kill()
 
-    async def send_input(self, json_data):
+    async def send_input(self, dict_data: Dict):
+        json_data = json.dumps(dict_data)
         response = requests.post(BASE_URL, data=json_data, headers=self.headers)
         return response
 
