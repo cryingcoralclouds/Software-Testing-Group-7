@@ -1,5 +1,8 @@
 # 50.053 Software Testing and Verification 
 
+## About the Fuzzer
+Please read more about our fuzzer [here](FUZZER.md).
+
 ## Fuzzing a Django Web Application.
 
 ## Manual Build
