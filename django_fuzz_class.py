@@ -199,7 +199,7 @@ class DjangoFuzzer(AFLFuzzer):
             factor = MAX_FACTOR
 
         energy = int(min((ALPHA * factor / BETA), (MAX_MULT * 100) ) )  # Compute energy according to the exponential schedule
-        return 5
+        return energy
 
     async def fuzz(self):
         await self.setup()
